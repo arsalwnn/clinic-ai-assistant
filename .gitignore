@@ -1,0 +1,10 @@
+chroma_db/
+__pycache__/
+.env/
+venv/
+.env
+*.pyc
+google_key.json
+*.json
+clinic_info.txt
+appointments.csv
