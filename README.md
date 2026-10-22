@@ -93,12 +93,48 @@ When you change `clinic_info.txt` or the embedding model, delete the `chroma_db/
 - **Knowledge base is plain text.** Adapting the assistant to another clinic means editing one file.
 - **The vector index is persisted**, so documents are embedded once instead of on every start.
 
+## Evaluation
+All tests use small, hand-written Persian test sets.
+Results show the prototype behaves as designed; they are not clinical validation.
+
+| Component | Test set | Metric | Result |
+|---|---|---|---|
+| Red-flag layer | N emergency / self-harm messages | Recall | X/N |
+| Red-flag layer | N ordinary messages | False-alert rate | X/N |
+| Intent classifier | N messages, 5 classes | Accuracy | X% |
+| RAG answers | N in-KB questions | Correct & grounded | X/N |
+| Abstention | N out-of-KB questions | Correct "not in KB" | X/N |
+| Booking flow | N unit tests | Passed | X/N |
+
+
+## Known issues and engineering notes
+
+- **Response latency and overlapping messages.** In informal testing with a
+  few real users, each request took about 10 seconds (slow Gemini embedding
+  calls were a significant contributor). Users who saw no reply assumed the
+  bot had stalled and sent follow-up messages ("what happened?"). Because the
+  previous request was still being processed, the bot answered these follow-ups
+  out of context, producing off-target replies.
+  **Mitigation:** when a new message arrives from a user whose previous message
+  has not been answered yet, the bot waits about 5-6 seconds and then processes
+  the new message as a separate, independent request. This reduced the problem.
+  **Limitation:** this is a simple delay-based workaround, not proper per-user
+  concurrency control. Messages are still handled independently, so a follow-up
+  such as "what happened?" is not linked to the earlier question. Planned
+  improvements: a per-user message queue or lock, async handling, an immediate
+  "processing..." acknowledgment, and a faster (e.g. local multilingual)
+  embedding model.
+- **Network access in the development environment.** Reaching Telegram and the
+  Gemini API required a VPN/proxy, which caused intermittent connection drops
+  during development. This was addressed by using a more stable VPN rather than
+  in code; timeout and retry handling is planned.
+
+
 ## Limitations and roadmap
 
 - The red-flag keyword list is a starting point and **must be reviewed by a physician** before any real use.
 - Appointments are stored in a local CSV; Google Sheets / Calendar integration is planned.
 - Conversation state is kept in memory and is lost on restart.
-- There is no evaluation set yet. Planned: retrieval and answer-quality tests, and recall tests for the red-flag layer.
 - No consent flow or data-retention policy yet. The CSV contains patient names and phone numbers in plain text, which must be addressed before real use.
 - Only Telegram is implemented; a WhatsApp channel is planned.
 
